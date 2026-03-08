@@ -186,8 +186,6 @@ I developed this software referring to the softwares as below.
 
 As far as I know, the source code for Bonanza and dlshogi is currently not publicly available.
 
-## About the future
-
 I think I'll add search functions and analyze records functions.
 
 I developed this software referring to the books as below. All books are written in Japanese, so I write the name of the books in Japanese.
