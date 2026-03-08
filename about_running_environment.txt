@@ -1,0 +1,77 @@
+2026/03/08
+
+I was thinking of publishing the running environment as a Release file, but the file size of GPU-related libraries is very heavy, so the directory structure is described here.
+
+[root] -------- [runtimes] -------- [linux-x64] -------- [native]
+                                    [win-x64]   -------- [native]
+
+【files in [root\]】
+abb_cross_attacks.txt
+abb_cross_mask_ex.txt
+abb_diag1_attacks.txt
+abb_diag1_mask_ex.txt
+abb_diag2_attacks.txt
+abb_diag2_mask_ex.txt
+abb_diagonal_attacks.txt
+abb_diagonal_mask_ex.txt
+abb_file_attacks.txt
+abb_file_mask_ex.txt
+abb_lance_attacks.txt
+abb_lance_mask_ex.txt
+abb_obstacles.txt
+abb_rank_attacks.txt
+abb_rank_mask_ex.txt
+Altair.deps.json
+Altair.dll
+Altair.exe
+Altair.pdb
+Altair.runtimeconfig.json
+cublas64_12.dll
+cublasLt64_12.dll
+cudart64_12.dll
+cudnn_adv_infer64_8.dll
+cudnn_adv_train64_8.dll
+cudnn_adv64_9.dll
+cudnn_cnn_infer64_8.dll
+cudnn_cnn_train64_8.dll
+cudnn_cnn64_9.dll
+cudnn_engines_precompiled64_9.dll
+cudnn_engines_runtime_compiled64_9.dll
+cudnn_graph64_9.dll
+cudnn_heuristic64_9.dll
+cudnn_ops_infer64_8.dll
+cudnn_ops_train64_8.dll
+cudnn_ops64_9.dll
+cudnn64_8.dll
+cudnn64_9.dll
+cufft64_11.dll
+cufftw64_11.dll
+Microsoft.ML.OnnxRuntime.dll
+model.onnx
+model_value.onnx
+nvblas64_12.dll
+onnxruntime.dll
+onnxruntime_providers_cuda.dll
+onnxruntime_providers_shared.dll
+onnxruntime_providers_tensorrt.dll
+System.Numerics.Tensors.dll
+(49 files)
+
+【files in [root\runtimes\linux-x64\native\]】
+libonnxruntime.so
+libonnxruntime_providers_cuda.so
+libonnxruntime_providers_shared.so
+libonnxruntime_providers_tensorrt.so
+(4 files)
+
+【files in [root\runtimes\win-x64\native\]】
+onnxruntime.dll
+onnxruntime.lib
+onnxruntime_providers_cuda.dll
+onnxruntime_providers_cuda.lib
+onnxruntime_providers_shared.dll
+onnxruntime_providers_shared.lib
+onnxruntime_providers_tensorrt.dll
+onnxruntime_providers_tensorrt.lib
+(8 files)
+
