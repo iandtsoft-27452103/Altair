@@ -110,7 +110,7 @@ Module Common
                                                                             {Piece.Dragon, "+R"}, {-Piece.Pawn, "p"}, {-Piece.Lance, "l"}, {-Piece.Knight, "n"},
                                                                             {-Piece.Silver, "s"}, {-Piece.Gold, "g"}, {-Piece.Bishop, "b"}, {-Piece.Rook, "r"}, {-Piece.King, "k"},
                                                                             {-Piece.Pro_Pawn, "+p"}, {-Piece.Pro_Lance, "+l"}, {-Piece.Pro_Knight, "+n"}, {-Piece.Pro_Silver, "+s"},
-                                                                            {-Piece.Horse, "+b"}, {-Piece.Dragon, "+r"}}
+                                                                            {-Piece.Horse, "+b"}, {-Piece.Dragon, "+r"}, {Piece.Empty, ""}}
     Public ReadOnly Int_Pc As New Dictionary(Of String, Integer) From {{"P", Piece.Pawn}, {"L", Piece.Lance}, {"N", Piece.Knight}, {"S", Piece.Silver}, {"G", Piece.Gold},
                                      {"B", Piece.Bishop}, {"R", Piece.Rook}, {"K", Piece.King}, {"+P", Piece.Pro_Pawn}, {"+L", Piece.Pro_Lance},
                                      {"+N", Piece.Pro_Knight}, {"+S", Piece.Pro_Silver}, {"+B", Piece.Horse}, {"+R", Piece.Dragon},
@@ -175,6 +175,8 @@ Module Common
         DOWN_RIGHT
         UP_LEFT_KNIGHT
         UP_RIGHT_KNIGHT
+        DOWN_LEFT_KNIGHT
+        DOWN_RIGHT_KNIGHT
         UP_LEFT_PRO
         UP_PRO
         UP_RIGHT_PRO
@@ -185,6 +187,8 @@ Module Common
         DOWN_RIGHT_PRO
         UP_LEFT_KNIGHT_PRO
         UP_RIGHT_KNIGHT_PRO
+        DOWN_LEFT_KNIGHT_PRO
+        DOWN_RIGHT_KNIGHT_PRO
         DROP_PAWN
         DROP_LANCE
         DROP_KNIGHT
@@ -378,6 +382,9 @@ Module Common
         Public move As Dictionary(Of Rand, Move)
         Public ply As Dictionary(Of Rand, Integer)
     End Structure
+    Public Structure TT2
+        Public value As Dictionary(Of Rand, Single)
+    End Structure
     Public Structure MateSearchTree
         Public move_cur As Move()
         Public mate_proc As List(Of List(Of Move))
@@ -396,4 +403,40 @@ Module Common
         Public winner As Integer
         Public ply As Integer
     End Structure
+    Public Class Node
+        Public color As Integer
+        Public ParentIndex As Integer
+        Public ThisIndex As Integer
+        Public TrialCount As Integer
+        Public PlayoutCount As Integer
+        Public WinCount As Integer
+        Public DrawCount As Integer
+        Public LostCount As Integer
+        Public EvalCount As Integer
+        Public WinRateSum As Single
+        Public LostRateSum As Single
+        Public IsLeaf As Boolean
+        Public ChildIndexes As List(Of Integer)
+        Public move As Move
+        Public PolicyResult As Single
+    End Class
+    Public Class MCTSTree
+        Public BTree As BoardTree
+        Public NodeList As List(Of Node)
+        Public PlayOutCount As Integer
+        Public RootOutput As Single()
+        Public value_lambda As Single
+        Public nthr As Integer
+        Public TaskNumber As Integer
+        Public SearchTimeLimit As Integer
+        Public TimeBuffer As Integer
+        Public sw As Stopwatch
+        Public queue_from_main_thread_p As Queue(Of String)
+        Public queue_to_main_thread_p As Queue(Of String)
+        Public queue_from_main_thread_v As Queue(Of String)
+        Public queue_to_main_thread_v As Queue(Of String)
+        Public tt As TT2
+        Public is_abort As Boolean
+        Public is_finished As Boolean
+    End Class
 End Module

@@ -48,8 +48,10 @@ Module SFEN
                         Continue For
                     End If
                     If num > 0 Then
+                        k = -Sign_Table(i) * j
                         If num = 1 Then
-                            k = -Sign_Table(i) * j
+                            str_sfen = str_sfen & Str_SFEN_Pc(k)
+                        Else
                             str_sfen = str_sfen & num.ToString() & Str_SFEN_Pc(k)
                         End If
                     End If

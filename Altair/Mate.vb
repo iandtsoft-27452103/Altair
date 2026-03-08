@@ -1,8 +1,12 @@
-﻿Imports System.Text.Json
+﻿Imports System.Threading.Tasks.Dataflow
 Imports Altair.Common
 Imports BitBoard = System.UInt128
 Imports Move = System.UInt32
 Module Mate
+    'I do not use array intentionally.
+    Public mst0 As MateSearchTree
+    Public mst1 As MateSearchTree
+
     Public Function InitMateSearchTree(ByVal ply_limit As Integer) As MateSearchTree
         Dim mst As MateSearchTree
         mst.max_ply = ply_limit
@@ -50,7 +54,7 @@ Module Mate
             If .is_mate_root = True And .is_abort = False Then
                 Console.WriteLine("詰みあり")
                 '後で直す
-                .root_str_pv = ""
+                '.root_str_pv = ""
                 .root_str_pv = OutResult(mst, rest_depth)
                 Console.WriteLine(.root_str_pv)
             End If

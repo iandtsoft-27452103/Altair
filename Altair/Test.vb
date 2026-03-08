@@ -1,7 +1,5 @@
 ﻿Imports System.IO
-Imports System.Net.Mail
-Imports System.Net.Security
-Imports System.Text
+Imports System.Threading.Tasks
 Imports Altair.Common
 Imports BitBoard = System.UInt128
 Imports Move = System.UInt32
@@ -871,5 +869,83 @@ Module Test
                 Console.WriteLine("不一致のPly：" & i.ToString())
             End If
         Next i
+    End Sub
+
+    Public Sub TestONNXFeature()
+        Dim bt As BoardTree
+        Dim ft(1 * 105 * 9 * 9 - 1) As Single
+        Dim str_sfen As String
+        str_sfen = "7nl/4kl1+R1/1+L6p/2pppPp2/1s3p3/1pPP2P2/n1G1B3P/2G6/2K1+b4 b RG2SNL2Pgsn4p 1"
+        bt = ToBoard(str_sfen)
+        ft = MakeInputFeatures(bt, bt.RootColor)
+    End Sub
+
+    Public Sub TestMateMultiTask()
+        Dim num_tasks As Integer
+        Dim str_sfen As String
+        Dim bt As BoardTree
+        Dim moves As List(Of Move)
+        Dim li_moves0 As List(Of Move)
+        Dim li_moves1 As List(Of Move)
+        Dim mst0 As MateSearchTree
+        Dim mst1 As MateSearchTree
+        Dim index As Integer
+        Dim i As Integer
+        num_tasks = 2
+        str_sfen = "7nl/4kl1+R1/1+L6p/2pppPp2/1s3p3/1pPP2P2/n1G1B3P/2G6/2K1+b4 b RG2SNL2Pgsn4p 1" '2022年4月3日のNHK杯▲木村九段対△黒田五段戦の終盤戦
+        bt = Board.Init()
+        Clear(bt)
+        bt = ToBoard(str_sfen)
+        moves = New List(Of Move)
+        li_moves0 = New List(Of Move)
+        li_moves1 = New List(Of Move)
+        GenCheck(bt, bt.RootColor, moves)
+        mst0 = InitMateSearchTree(5)
+        mst0.BTree = ToBoard(str_sfen)
+        mst1 = InitMateSearchTree(5)
+        mst1.BTree = ToBoard(str_sfen)
+        index = 0
+        For i = 0 To moves.Count - 1
+            If index = 0 Then
+                li_moves0.Add(moves(i))
+            Else
+                li_moves1.Add(moves(i))
+            End If
+            index = index Xor 1
+        Next i
+        For i = 0 To li_moves0.Count - 1
+            mst0.RootCheckMoves.Add(li_moves0(i))
+        Next i
+        For i = 0 To li_moves1.Count - 1
+            mst1.RootCheckMoves.Add(li_moves1(i))
+        Next i
+        ' Task.Run(MateSearchWrapper(mst0, 5))
+        Dim task0 As Task = Task.Run(Sub()
+                                         MateSearchWrapper(mst0, 5)
+                                     End Sub)
+        Dim task1 As Task = Task.Run(Sub()
+                                         MateSearchWrapper(mst1, 5)
+                                     End Sub)
+        Task.WaitAll(task0, task1)
+        'task0 = Task.Run(MateSearchWrapper(mst0, 5))
+        'MateSearchWrapper(mst, 5)
+    End Sub
+
+    Public Sub TestExecPolicy()
+        Dim str_sfen As String()
+        str_sfen = New String(1) {}
+        str_sfen(0) = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1"
+        str_sfen(1) = "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1"
+        LoadModel()
+        Dim s = ExecPolicy(str_sfen)
+    End Sub
+
+    Public Sub TestExecValue()
+        Dim str_sfen As String()
+        str_sfen = New String(1) {}
+        str_sfen(0) = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1"
+        str_sfen(1) = "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1"
+        LoadModel()
+        Dim s = ExecValue(str_sfen)
     End Sub
 End Module
