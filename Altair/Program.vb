@@ -20,7 +20,9 @@ Module Program
         Dim str_black_player As String = args(8)
         Dim str_white_player As String = args(9)
 
-        'AnalyzeRecord(6, 2, 10, 9, "analyze_result.txt", "20220403_nhk_hai.txt", "2022/04/03", "第72回NHK杯1回戦", "木村一基九段", "黒田尭之五段")
+        'TestSFEN()
+
+        'AnalyzeRecord(6, 2, 30, 9, "analyze_result.txt", "20220403_nhk_hai.txt", "2022/04/03", "第72回NHK杯1回戦", "木村一基九段", "黒田尭之五段")
         AnalyzeRecord(num_tasks, num_mate_tasks, thinking_time, mate_search_depth, analyze_file_name, record_file_name, str_game_date, str_match_name, str_black_player, str_white_player)
     End Sub
 End Module

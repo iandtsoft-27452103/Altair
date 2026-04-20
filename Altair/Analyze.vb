@@ -1,5 +1,7 @@
 ﻿Imports System.IO
+Imports System.Reflection
 Imports System.Text
+Imports System.Text.Json
 Imports Microsoft.ML.OnnxRuntime
 Imports Microsoft.ML.OnnxRuntime.Tensors
 Imports Move = System.UInt32
@@ -54,6 +56,9 @@ Module Analyze
         denomi_black = 0
         denomi_white = 0
         For i = 0 To r.str_moves.Count - 1
+            'If i <> 77 Then
+            'GoTo a
+            'End If
             bt.RootColor = c
             str_result = ""
             mate_first_move = 0
@@ -75,7 +80,7 @@ Module Analyze
                         move_first_accuracy(c) += 1
                     End If
                 End If
-                str_mate_pv = "ply=" & (i + 1).ToString() & ", 棋譜の手: " & Str_Color & r.str_moves(i) & ", result= " & str_accurate & ", 詰みあり： " & str_mate_pv
+                str_mate_pv = "ply=" & (i + 1).ToString() & ", 棋譜の手: " & str_color & r.str_moves(i) & ", result= " & str_accurate & ", 詰みあり： " & str_mate_pv
                 sw.WriteLine(str_mate_pv)
             Else
                 Dim str_color As String = "+"
@@ -92,6 +97,7 @@ Module Analyze
             '        move_first_accuracy(c) += 1
             '    End If
             'End If
+            'a:
             m = CSA2Move(bt, r.str_moves(i))
             DoMove(bt, m, c)
             c = c Xor 1
@@ -125,7 +131,7 @@ Module Analyze
         temp_s = temp_n.ToString() & " / " & denomi.ToString() & " = " & (temp_n / denomi).ToString("P2")
         sw.WriteLine("3位以内の確率：" & temp_s)
         sw.WriteLine()
-        sw.WriteLine("解析エンジン名：Altair Ver.1.0.0")
+        sw.WriteLine("解析エンジン名：Altair Ver.1.1.0")
         sw.Close()
     End Sub
 
@@ -195,9 +201,16 @@ Module Analyze
         Dim i As Integer
         Dim lbl As Label
         Dim s As String
-        Dim v_sum As Single
-        Dim li_v As List(Of Single)
+        Dim li_v = New List(Of Single)
         Dim newShape As Integer() = {1, 32, 81}
+        Dim tempRootOutput = New Single(m.BTree.RootMoves.Length - 1) {}
+        Dim limit As Integer = 4
+        Dim idxes = New List(Of Integer)
+        Dim temp_index As Integer
+        Dim temp_values = New List(Of Single)
+        Dim temp_value As Single
+        Dim temp_moves = New List(Of Move)
+        Dim outputs_sum As Single
 
         ' prediction
         Using results = policy_session.Run(New List(Of NamedOnnxValue) From {
@@ -211,20 +224,41 @@ Module Analyze
 
         outputTensor = outputTensor.Reshape(newShape)
 
-        v_sum = 0.0F
         li_v = New List(Of Single)
         For i = 0 To m.BTree.RootMoves.Length - 1
             s = Move2CSA(m.BTree.RootMoves(i))
             lbl = MakeOutputLabel(m.BTree.RootMoves(i))
             Dim v = outputTensor(0, lbl, GetTo(m.BTree.RootMoves(i)))
-            v_sum += v
             li_v.Add(v)
         Next i
-        'softmax function
+
         For i = 0 To m.BTree.RootMoves.Length - 1
-            m.RootOutput(i) = li_v(i) / v_sum
+            'm.RootOutput(i) = li_v(i)
+            tempRootOutput(i) = li_v(i)
         Next i
 
+        If m.BTree.RootMoves.Length < limit Then
+            limit = m.BTree.RootMoves.Length
+        End If
+
+        For i = 0 To limit - 1
+            temp_index = Array.IndexOf(tempRootOutput, tempRootOutput.Max())
+            temp_value = tempRootOutput(temp_index)
+            idxes.Add(temp_index)
+            temp_values.Add(temp_value)
+            tempRootOutput(temp_index) = Single.MinValue
+        Next i
+
+        For i = 0 To idxes.Count - 1
+            temp_moves.Add(m.BTree.RootMoves(idxes(i)))
+        Next i
+        m.BTree.RootMoves = New Move(temp_moves.Count - 1) {}
+        m.RootOutput = New Single(temp_moves.Count - 1) {}
+        outputs_sum = temp_values.Sum()
+        For i = 0 To idxes.Count - 1
+            m.BTree.RootMoves(i) = temp_moves(i)
+            m.RootOutput(i) = temp_values(i) / outputs_sum
+        Next i
     End Sub
 
     Public Function ExecPolicy(ByVal str_sfen As String()) As String()
@@ -236,19 +270,21 @@ Module Analyze
         Dim ito As Integer
         Dim lbl As Label
         Dim s As String
-        Dim v_sum As Single
+        'Dim v_sum As Single
         Dim li_v As List(Of Single)
         Dim bt As BoardTree
         Dim moves As List(Of Move)
         Dim legal_moves As List(Of Move)
         Dim outputs As List(Of Single)
         Dim str_moves As List(Of String)
+        Dim str_moves2 As List(Of String)
         Dim str_out As String()
 
         bt = New BoardTree
         moves = New List(Of Move)
         outputs = New List(Of Single)
         str_moves = New List(Of String)
+        str_moves2 = New List(Of String)
 
         batch_size = str_sfen.Length
         Dim newShape As Integer() = {batch_size, 32, 81}
@@ -257,8 +293,13 @@ Module Analyze
         Dim inputData As Single() = New Single(1 * 105 * 9 * 9 - 1) {}
         Dim inputData2 As Single() = New Single(batch_size * 105 * 9 * 9 - 1) {}
         For i = 0 To batch_size - 1
-            bt = ToBoard(str_sfen(i))
-            inputData = MakeInputFeatures(bt, bt.RootColor)
+            Try
+                bt = ToBoard(str_sfen(i))
+                inputData = MakeInputFeatures(bt, bt.RootColor)
+            Catch ex As Exception
+                Console.WriteLine("例外が発生しましたが、処理を続行します。")
+                Console.WriteLine(str_sfen(i))
+            End Try
             inputData.CopyTo(inputData2, (i * 1 * 105 * 9 * 9))
         Next i
 
@@ -309,25 +350,51 @@ Module Analyze
 
             outputTensor = outputTensor.Reshape(newShape)
 
-            v_sum = 0.0F
+            'v_sum = 0.0F
             li_v = New List(Of Single)
             For j = 0 To legal_moves.Count - 1
                 s = Move2CSA(legal_moves(j))
                 lbl = MakeOutputLabel(legal_moves(j))
                 Dim v = outputTensor(i, lbl, GetTo(legal_moves(j)))
-                v_sum += v
+                'v_sum += v
                 str_moves.Add(s)
                 li_v.Add(v)
             Next j
+
+            Dim limit As Integer = 4
+
+            If legal_moves.Count < limit Then
+                limit = legal_moves.Count
+            End If
+
+            Dim temp_index As Integer
+            Dim temp_value As Single
+            Dim idxes = New List(Of Integer)
+            Dim temp_values = New List(Of Single)
+            Dim temp_moves = New List(Of Move)
+
+            For j = 0 To limit - 1
+                temp_index = li_v.IndexOf(li_v.Max())
+                temp_value = li_v(temp_index)
+                idxes.Add(temp_index)
+                temp_values.Add(temp_value)
+                li_v(temp_index) = Single.MinValue
+            Next j
+
+            For j = 0 To idxes.Count - 1
+                temp_moves.Add(legal_moves(idxes(j)))
+                str_moves2.Add(Move2CSA(legal_moves(idxes(j))))
+            Next j
+
             'softmax function
             str_out(i) = ""
-            For j = 0 To legal_moves.Count - 1
+            For j = 0 To temp_moves.Count - 1
                 If j <> 0 Then
                     str_out(i) = str_out(i) & ","
                 End If
-                Dim v = li_v(j) / v_sum
+                Dim v = temp_values(j)
                 outputs.Add(v)
-                str_out(i) = str_out(i) & str_moves(j) & " " & v.ToString()
+                str_out(i) = str_out(i) & str_moves2(j) & " " & v.ToString()
             Next j
             str_moves.Clear()
             outputs.Clear()

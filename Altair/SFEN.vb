@@ -47,6 +47,14 @@ Module SFEN
                     If num = 0 Then
                         Continue For
                     End If
+                    'このブロックはパッチ。今のところ原因が分からない。
+                    If j = Piece.Pawn And num > 19 Then
+                        num = 18
+                    ElseIf (j = Piece.Bishop Or j = Piece.Rook) And num > 2 Then
+                        num = 2
+                    ElseIf (j >= Piece.Lance And j <= Piece.Gold) And num > 4 Then
+                        num = 4
+                    End If
                     If num > 0 Then
                         k = -Sign_Table(i) * j
                         If num = 1 Then

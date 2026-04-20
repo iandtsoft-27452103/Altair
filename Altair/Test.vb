@@ -948,4 +948,13 @@ Module Test
         LoadModel()
         Dim s = ExecValue(str_sfen)
     End Sub
+
+    Public Sub TestSFEN()
+        Dim bt As BoardTree
+        bt = Board.Init()
+        bt.Hand(0) = 131332
+        bt.Hand(1) = 2079
+        ToSFEN(bt, 0)
+    End Sub
+
 End Module
