@@ -937,7 +937,7 @@ Module Test
         str_sfen(0) = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1"
         str_sfen(1) = "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1"
         LoadModel()
-        Dim s = ExecPolicy(str_sfen)
+        Dim s = ExecPolicy(str_sfen, 4)
     End Sub
 
     Public Sub TestExecValue()

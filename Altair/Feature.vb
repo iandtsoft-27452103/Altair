@@ -1,5 +1,4 @@
-﻿Imports System.Text.Json
-Imports BitBoard = System.UInt128
+﻿Imports BitBoard = System.UInt128
 Module Feature
     Public Function MakeInputFeatures(ByVal bt As BoardTree, ByVal c As Integer) As Single()
         Dim i As Integer

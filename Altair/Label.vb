@@ -89,4 +89,22 @@ Module LabelModule
         End If
         Return lbl
     End Function
+    Public Function MakeOutputLSTMLabel(ByVal m As Move, ByRef sq As Integer) As Label
+        Dim ifrom As Integer
+        Dim ito As Integer
+        Dim pc As Integer
+        Dim is_promo As Integer
+        Dim h As Integer
+        ifrom = GetFrom(m)
+        ito = GetTo(m)
+        sq = ito
+        pc = GetPiece(m)
+        is_promo = IsPromote(m)
+        If ifrom < Square_NB Then
+            h = ((is_promo << 14) + (ito << 7) + ifrom)
+        Else
+            h = ((is_promo << 14) + (ito << 7) + (ifrom + pc - 1))
+        End If
+        Return LabelTable(h)
+    End Function
 End Module

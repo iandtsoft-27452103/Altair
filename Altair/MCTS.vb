@@ -54,6 +54,7 @@ Module MCTS
             InitTT2(.tt)
             .is_abort = False
             .is_finished = False
+            .VectorList = ""
         End With
         Return mcts_t
     End Function
@@ -188,7 +189,7 @@ Module MCTS
         Next i
         m.BTree.RootMoves = legal_moves.ToArray()
     End Sub
-
+    ' For CNN.
     Public Sub Root(ByRef mcts_t As MCTSTree)
         Dim root_node As Node
         Dim node As Node
@@ -289,6 +290,135 @@ Module MCTS
             End While
         End With
     End Sub
+    ' For RNN.
+    Public Sub Root2(ByRef mcts_t As MCTSTree)
+        Dim root_node As Node
+        Dim node As Node
+        Dim i As Integer
+        Dim elapsed As Long
+        Dim t As Integer
+        Dim u As Single
+        Dim q As Single
+        Dim ucb1_array As Single()
+        Dim max_index As Integer
+        Dim bt As BoardTree
+        Dim result As Integer
+        'Dim result_array As List(Of Single)
+        'result_array = New List(Of Single)
+        With mcts_t
+            .NodeList.Clear()
+            root_node = InitNode()
+            root_node.ThisIndex = 0
+            .NodeList.Add(root_node)
+            For i = 0 To .BTree.RootMoves.Length - 1
+                node = InitNode()
+                node.color = .BTree.RootColor
+                node.move = .BTree.RootMoves(i)
+                node.ParentIndex = 0
+                node.ThisIndex = i + 1
+                .NodeList(0).ChildIndexes.Add(i + 1)
+                node.PolicyResult = .RootOutput(i)
+                'result_array(i) = .RootOutput(i)
+                .NodeList.Add(node)
+            Next i
+
+
+            While True
+                elapsed = .sw.ElapsedMilliseconds
+                If .SearchTimeLimit < elapsed Then
+                    Exit While
+                End If
+
+                If .is_abort = True Then
+                    Exit While
+                End If
+
+                ucb1_array = New Single(.BTree.RootMoves.Length - 1) {}
+                t = 0
+                i = 1
+                While i < .BTree.RootMoves.Length
+                    t += .NodeList(i).PlayoutCount
+                    i += 1
+                End While
+                i = 1
+                While i < .BTree.RootMoves.Length
+                    u = .NodeList(i).PolicyResult * CSng(Math.Sqrt(t)) / CSng(.NodeList(i).PlayoutCount + 1)
+                    q = 0.0F
+                    If .NodeList(i).EvalCount > 0 And .NodeList(i).PlayoutCount > 0 Then
+                        q = (CSng(1 - .value_lambda) * (.NodeList(i).WinRateSum / CSng(.NodeList(i).EvalCount)) + .value_lambda * (CSng(.NodeList(i).WinCount) / CSng(.NodeList(i).PlayoutCount)))
+                    End If
+                    ucb1_array(i - 1) = u + q
+                    i += 1
+                End While
+
+                max_index = Array.IndexOf(ucb1_array, ucb1_array.Max()) + 1
+
+                DoMove(.BTree, .BTree.RootMoves(max_index - 1), .BTree.RootColor)
+                If .NodeList(max_index).IsLeaf = True Then
+                    elapsed = .sw.ElapsedMilliseconds
+                    If .SearchTimeLimit < (elapsed + .TimeBuffer) Then
+                        Exit While
+                    End If
+                    If .is_abort = True Then
+                        Exit While
+                    End If
+                    If .NodeList(max_index).TrialCount >= .nthr Then
+                        ExpandNode2(mcts_t, .BTree.RootColor Xor 1, max_index, .BTree.Ply + 1)
+                        If .is_abort = True Then
+                            Exit While
+                        End If
+                    Else
+                        bt = Board.Init()
+                        bt = DeepCopy(.BTree, False)
+                        result = PlayOut(mcts_t, bt, .BTree.RootColor Xor 1, max_index, .BTree.Ply + 1)
+                        EvalNode2(mcts_t, max_index, .BTree.RootColor Xor 1)
+                        If .is_abort = True Then
+                            Exit While
+                        End If
+                        UpdateParam(mcts_t, max_index, result)
+                    End If
+                Else
+
+                    elapsed = .sw.ElapsedMilliseconds
+                    If .SearchTimeLimit < (elapsed + .TimeBuffer) Then
+                        Exit While
+                    End If
+                    If .is_abort = True Then
+                        Exit While
+                    End If
+                    DescendNode2(mcts_t, .BTree.RootColor Xor 1, max_index, .nthr, .BTree.Ply + 1)
+                End If
+                UnDoMove(.BTree, .BTree.RootMoves(max_index - 1), .BTree.RootColor)
+            End While
+        End With
+    End Sub
+
+    Private Function MakeInputVectors(ByRef mcts_t As MCTSTree, ByVal parent_index As Integer) As String
+        Dim str_out As String = ""
+        Dim current_node As Node
+        Dim m As Move
+        Dim sq As Integer
+        Dim temp_label As Label
+        Dim h As Integer
+        Dim temp_index As Integer = parent_index
+        With mcts_t
+            While True
+                current_node = .NodeList(temp_index)
+                m = current_node.move
+                sq = GetTo(m)
+                temp_label = MakeOutputLSTMLabel(m, sq)
+                h = (temp_label << 7) Or sq
+                If current_node.ParentIndex = 0 Then
+                    str_out = str_out & h.ToString()
+                    Exit While
+                Else
+                    str_out = str_out & h.ToString() & ","
+                    temp_index = current_node.ParentIndex
+                End If
+            End While
+        End With
+        Return str_out
+    End Function
 
     Private Sub ExpandNode(ByRef mcts_t As MCTSTree, ByVal c As Integer, ByVal parent_index As Integer, ByVal ply As Integer)
         Dim mate_move As Move
@@ -414,6 +544,131 @@ Module MCTS
         End With
     End Sub
 
+    Private Sub ExpandNode2(ByRef mcts_t As MCTSTree, ByVal c As Integer, ByVal parent_index As Integer, ByVal ply As Integer)
+        Dim mate_move As Move
+        Dim bb_ret As BitBoard
+        Dim iret As Integer
+        Dim evasion_moves As List(Of Move)
+        Dim current_index As Integer
+        Dim flag As Boolean
+        Dim str_throw As String
+        Dim str_receive As String
+        Dim s As String()
+        Dim moves As List(Of Move)
+        Dim n As Node
+        Dim i As Integer
+        Dim s2 As String()
+        Dim m As Move
+        Dim ifrom As Integer
+        Dim ito As Integer
+        Dim bt As BoardTree
+        Dim result As Integer
+        mate_move = 0
+        With mcts_t
+            bb_ret = IsAttacked(.BTree, .BTree.SQ_King(c), c)
+            If bb_ret = 0 And MateIn1Ply(.BTree, c) <> 0 Then
+                'the case of mate in 1 ply.
+                .NodeList(parent_index).WinRateSum = 0.0F
+                .NodeList(parent_index).LostRateSum = 1.0F
+                .NodeList(parent_index).EvalCount += 1
+                Return
+            Else
+                If IsAttacked(.BTree, .BTree.SQ_King(c Xor 1), c Xor 1) <> 0 Then
+                    iret = IsDeclarationWin(.BTree)
+                    If iret = c + 1 Then
+                        .NodeList(parent_index).WinRateSum = 0.0F
+                        .NodeList(parent_index).LostRateSum = 1.0F
+                        .NodeList(parent_index).EvalCount += 1
+                        Return
+                    ElseIf (c = 0 And iret = 2) Or (c = 1 And iret = 1) Then
+                        .NodeList(parent_index).WinRateSum = 1.0F
+                        .NodeList(parent_index).LostRateSum = 0.0F
+                        .NodeList(parent_index).EvalCount += 1
+                        Return
+                    End If
+                End If
+            End If
+            If bb_ret > 0 Then
+                evasion_moves = New List(Of Move)
+                GenEvasion(.BTree, c, evasion_moves)
+                If evasion_moves.Count = 0 Then
+                    'this node is check mate.
+                    .NodeList(parent_index).WinRateSum = 1.0F
+                    .NodeList(parent_index).LostRateSum = 0.0F
+                    .NodeList(parent_index).EvalCount += 1
+                    Return
+                End If
+            End If
+            flag = False
+            str_throw = ToSFEN(.BTree, c)
+            str_throw = str_throw & "," & .VectorList & MakeInputVectors(mcts_t, parent_index)
+            str_throw = "p," & str_throw
+            .queue_to_main_thread_p.Enqueue(str_throw)
+            While .queue_from_main_thread_p.Count = 0
+                Thread.Sleep(1)
+                If .is_abort = True Then
+                    Return
+                End If
+            End While
+            str_receive = .queue_from_main_thread_p.Dequeue() 'string data format is like "7776FU 0.65,2226FU 0.25,5556FU 0.1" .
+            .queue_from_main_thread_p.Clear()
+            'the case of mate
+            If str_receive = "mate" Then
+                .NodeList(parent_index).WinRateSum = 1.0F
+                .NodeList(parent_index).LostRateSum = 0.0F
+                .NodeList(parent_index).EvalCount += 1
+                Return
+            End If
+            s = Split(str_receive, ",")
+            moves = New List(Of Move)
+            For i = 0 To s.Length - 1
+                'n = New Node
+                n = InitNode()
+                n.color = c
+                s2 = Split(s(i), " ")
+                m = CSA2Move(.BTree, s2(0))
+                ifrom = GetFrom(m)
+                ito = GetTo(m)
+                If ifrom < Square_NB Then
+                    'the case of discovered check
+                    If IsPinnedOnKing(.BTree, ifrom, Adirec(ifrom, ito), c) <> 0 Then
+                        Continue For
+                    End If
+                End If
+                If GetCapPiece(m) = Piece.King Then
+                    'the case of capture opponent king
+                    Continue For
+                End If
+                DoMove(.BTree, m, c)
+                'the case of discovered check
+                If IsAttacked(.BTree, .BTree.SQ_King(c), c) <> 0 Then
+                    UnDoMove(.BTree, m, c)
+                    Continue For
+                End If
+                n.ThisIndex = .NodeList.Count
+                n.ParentIndex = .NodeList(parent_index).ThisIndex
+                n.move = m
+                moves.Add(m)
+
+                .NodeList(parent_index).ChildIndexes.Add(n.ThisIndex)
+                n.PolicyResult = CSng(s2(1)) 'already executed softmax function.
+                .NodeList.Add(n)
+                current_index = n.ThisIndex
+                'bt = New BoardTree
+                bt = Board.Init()
+                bt = DeepCopy(.BTree, False)
+                result = PlayOut(mcts_t, bt, c Xor 1, current_index, ply + 1)
+                EvalNode2(mcts_t, current_index, c Xor 1)
+                UpdateParam(mcts_t, current_index, result)
+                UnDoMove(.BTree, m, c)
+                flag = True
+            Next i
+            If flag = True Then
+                mcts_t.NodeList(parent_index).IsLeaf = False
+            End If
+        End With
+    End Sub
+
     Public Function PlayOut(ByRef mcts_t As MCTSTree, ByRef temp_bt As BoardTree, ByVal start_color As Integer, ByVal node_index As Integer, ByVal temp_ply As Integer) As Integer
         Const ply_max As Integer = 384
         Dim result As Integer
@@ -519,6 +774,38 @@ Module MCTS
                 Return
             End If
             str_throw = ToSFEN(.BTree, c)
+            str_throw = "v," & str_throw
+            .queue_to_main_thread_v.Enqueue(str_throw)
+            While .queue_from_main_thread_v.Count = 0
+                Thread.Sleep(1)
+                If .is_abort = True Then
+                    Return
+                End If
+            End While
+            str_receive = .queue_from_main_thread_v.Dequeue() 'string data format is like "0.65" .
+            .queue_from_main_thread_v.Clear()
+            v = CSng(str_receive)
+            .NodeList(node_index).WinRateSum = 1 - v
+            .NodeList(node_index).LostRateSum = v
+            .NodeList(node_index).EvalCount += 1
+            .tt.value.TryAdd(.BTree.CurrentHash, v)
+        End With
+    End Sub
+
+    Private Sub EvalNode2(ByRef mcts_t As MCTSTree, ByVal node_index As Integer, ByVal c As Integer)
+        Dim f As Single
+        Dim str_throw As String
+        Dim str_receive As String
+        Dim v As Single
+        With mcts_t
+            If .tt.value.TryGetValue(.BTree.CurrentHash, f) <> False Then
+                .NodeList(node_index).WinRateSum = 1 - f
+                .NodeList(node_index).LostRateSum = f
+                .NodeList(node_index).EvalCount += 1
+                Return
+            End If
+            str_throw = ToSFEN(.BTree, c)
+            str_throw = str_throw & "," & mcts_t.VectorList & MakeInputVectors(mcts_t, node_index)
             str_throw = "v," & str_throw
             .queue_to_main_thread_v.Enqueue(str_throw)
             While .queue_from_main_thread_v.Count = 0
@@ -718,6 +1005,124 @@ end_label:
             End While
         End With
     End Sub
+
+    Private Sub DescendNode2(ByRef mcts_t As MCTSTree, ByVal c As Integer, ByVal node_index As Integer, ByVal nthr As Integer, ByVal ply As Integer)
+        Dim idx As Integer
+        Dim flag As Boolean
+        Dim elapsed As Long
+        Dim t As Integer
+        Dim i As Integer
+        Dim u As Single
+        Dim q As Single
+        Dim ucb1_array As Single()
+        Dim max_index As Integer
+        Dim bt As BoardTree
+        Dim result As Integer
+        Dim current_node As Node
+        Dim temp_color As Integer
+        Dim index As Integer
+        With mcts_t
+            If .NodeList(node_index).ChildIndexes.Count = 0 Then
+                Return
+            End If
+            idx = 0
+            flag = False
+            While True
+                elapsed = mcts_t.sw.ElapsedMilliseconds
+                If .SearchTimeLimit < (elapsed + .TimeBuffer) Then
+                    Exit While
+                End If
+                If .is_abort = True Then
+                    Exit While
+                End If
+                ucb1_array = New Single(.NodeList(node_index).ChildIndexes.Count) {}
+                t = 0
+                i = 0
+                While i < .NodeList(node_index).ChildIndexes.Count
+                    idx = .NodeList(node_index).ChildIndexes(i)
+                    t += .NodeList(idx).PlayoutCount
+                    i += 1
+                End While
+                i = 0
+                While i < .NodeList(node_index).ChildIndexes.Count
+                    idx = .NodeList(node_index).ChildIndexes(i)
+                    u = .NodeList(idx).PolicyResult * CSng(Math.Sqrt(t)) / CSng(.NodeList(idx).PlayoutCount + 1)
+                    q = 0.0F
+                    If .NodeList(idx).EvalCount > 0 And .NodeList(idx).PlayoutCount > 0 Then
+                        q = (1 - .value_lambda) * (.NodeList(idx).WinRateSum / CSng(.NodeList(idx).EvalCount)) + .value_lambda * (CSng(.NodeList(idx).WinCount) / (CSng(.NodeList(idx).PlayoutCount)))
+                    End If
+                    ucb1_array(i) = u + q
+                    i += 1
+                End While
+                max_index = Array.IndexOf(ucb1_array, ucb1_array.Max())
+                idx = .NodeList(node_index).ChildIndexes(max_index)
+                DoMove(.BTree, .NodeList(idx).move, c)
+                If .NodeList(idx).IsLeaf = True Then
+                    elapsed = .sw.ElapsedMilliseconds
+                    If .SearchTimeLimit < (elapsed + .TimeBuffer) Then
+                        flag = True
+                        GoTo end_label
+                    End If
+
+                    If .is_abort = True Then
+                        Exit While
+                    End If
+
+                    If .NodeList(idx).TrialCount >= .nthr Then
+                        ExpandNode2(mcts_t, c Xor 1, idx, ply + 1)
+                        If .is_abort = True Then
+                            Exit While
+                        End If
+                    Else
+                        'bt = New BoardTree()
+                        bt = Board.Init()
+                        bt = DeepCopy(.BTree, False)
+                        result = PlayOut(mcts_t, bt, c Xor 1, idx, ply + 1)
+                        EvalNode2(mcts_t, idx, c Xor 1)
+                        If .is_abort = True Then
+                            Exit While
+                        End If
+                        UnDoMove(.BTree, .NodeList(idx).move, c)
+                        AscendNode(mcts_t, c Xor 1, idx, result)
+                        Return
+                    End If
+                Else
+                    elapsed = .sw.ElapsedMilliseconds
+                    If .SearchTimeLimit < elapsed + .TimeBuffer Then
+                        flag = True
+                        GoTo end_label
+                    End If
+
+                    If .is_abort = True Then
+                        Exit While
+                    End If
+
+
+                    DescendNode2(mcts_t, c Xor 1, idx, nthr, ply + 1)
+                    Return
+                End If
+
+                UnDoMove(.BTree, .NodeList(idx).move, c)
+end_label:
+                If flag = True Then
+                    current_node = .NodeList(idx)
+                    temp_color = c Xor 1
+                    While True
+                        index = current_node.ParentIndex
+                        current_node = .NodeList(index)
+                        If current_node.ParentIndex = 0 Then
+                            Exit While
+                        End If
+                        UnDoMove(.BTree, current_node.move, temp_color)
+                        temp_color = temp_color Xor 1
+                    End While
+                    Exit While
+                End If
+            End While
+        End With
+    End Sub
+
+
     Private Sub AscendNode(ByRef mcts_t As MCTSTree, ByVal c As Integer, ByVal node_index As Integer, ByVal result As Integer)
         Dim current_node As Node
         Dim delta As Single
