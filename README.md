@@ -16,15 +16,17 @@ This software uses follwing technologies.
 
 (1) Convolutional Neural Network
 
-(2) Monte Carlo Tree Search
+(2) Recurrent Neural Network
 
-(1) and (2) are written by Visual Basic.
+(3) Monte Carlo Tree Search
 
-## Convolutional Neural Network
+(1), (2) and (3) are written by Visual Basic.
 
-Convolutional Neural Network is composed of Policy Network and Value Network. Policy Network predicts best move of current position. Value Network evaluates current position.
+## Neural Network
 
-### Input Features of Neural Network
+Convolutional and Recurrent Neural Network is composed of Policy Network and Value Network. Policy Network predicts best move of current position. Value Network evaluates current position.
+
+### Input Features of Convolutional Neural Network
 
 (1) position of pieces
 
@@ -32,13 +34,17 @@ Convolutional Neural Network is composed of Policy Network and Value Network. Po
 
 (3) turn
 
-### Output Labels of Policy Neural Network
+### Input Features of Recurrent Neural Network
 
 (1) position of move to
 
 (2) move direction
 
 The number of move directions are 32.
+
+### Output Labels of Policy Neural Network
+
+They are as same as input features of Recurrent Neural Network.
 
 ### Output Labels of Value Neural Network
 
@@ -88,7 +94,7 @@ This software use the records created by Gikou-2.0.1.
 
 (14) Mate1Ply.vb : Function for mate in one ply.
 
-(15) MCTS.vb : Functions for 
+(15) MCTS.vb : Functions for Monte Carlo Tree Search.
 
 (16) Move.vb : Functions for moves.
 
@@ -100,11 +106,13 @@ This software use the records created by Gikou-2.0.1.
 
 (20) Test2.vb :Functions for testing for CNN.
 
-(21) TT.vb : Functions for transposition table for alpha-beta search.
+(21) Test3.vb :Functions for testing for RNN.
+
+(22) TT.vb : Functions for transposition table for alpha-beta search.
 
 * Alpha-beta search functions are not implemented yet.
 
-(22) TT2.vb : Functions for transposition table for MCTS.
+(23) TT2.vb : Functions for transposition table for MCTS.
 
 ## Operating environment
 
@@ -146,29 +154,42 @@ Double click "Altair.sln" and build with using Visual Studio. I identified this 
 
 If you navigate to the cnn folder and execute the start.bat, the specified game record will be analyzed. The command-line arguments are as follows:
 
-(1) The number of tasks for MCTS   max = 6, min = 1
+(1) Executing mode   0: Analyzing Record by CNN, 1: Analyzing Record by RNN
 
-(2) The number of tasks for mate search   max = 2, min = 1
+(2) The number of tasks for MCTS   max = 6, min = 1
 
-(3) Thinking seconds per one move
+(3) The number of tasks for mate search   max = 2, min = 1
 
-(4) Mate search depth
+(4) Thinking seconds per one move
 
-(5) Output file name
+(5) Mate search depth
 
-(6) Record file name for analyzing
+(6) The number of results from Policy Network
 
-(7) Game date
+(7) Value Lambda   max = 1.0, min = 0.0
 
-(8) Match name
+* If this value is large, the results of Value Network is enphasized.
+  If this value is small, the results of Policy Network is enphasized.
 
-(9) Black Player name
+(8) Output file name
 
-(10) White Player name
+(9) Record file name for analyzing
+
+(10) Game date
+
+(11) Match name
+
+(12) Black Player name
+
+(13) White Player name
 
 ## Contents of Release file
 
 The execution environment of this software is contained in the Release file.
+
+## Known Bugs
+
+When executing LSTM, the alert message which related with the shape of input features is displayed.
 
 ## References
 
