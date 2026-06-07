@@ -1,6 +1,8 @@
-2026/03/08
+2026/06/07
 
 In Release file, there are two model files.
 
-model.onnx -------- model of Policy Network
-model_value.onnx -------- model of Value Network
+model.onnx -------- model of CNN Policy Network
+model_value.onnx -------- model of CNN Value Network
+model.lstm.onnx -------- model of LSTM Policy Network
+model.lstm_value.onnx -------- model of LSTM Value Network

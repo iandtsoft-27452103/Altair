@@ -1,4 +1,4 @@
-2026/03/08
+2026/06/07
 
 I was thinking of publishing the running environment as a Release file, but the file size of GPU-related libraries is very heavy, so the directory structure is described here.
 
@@ -48,6 +48,8 @@ cufft64_11.dll
 cufftw64_11.dll
 Microsoft.ML.OnnxRuntime.dll
 model.onnx
+model_lstm.onnx
+model_lstm_value.onnx
 model_value.onnx
 nvblas64_12.dll
 onnxruntime.dll
@@ -55,7 +57,7 @@ onnxruntime_providers_cuda.dll
 onnxruntime_providers_shared.dll
 onnxruntime_providers_tensorrt.dll
 System.Numerics.Tensors.dll
-(49 files)
+(51 files)
 
 【files in [root\runtimes\linux-x64\native\]】
 libonnxruntime.so
