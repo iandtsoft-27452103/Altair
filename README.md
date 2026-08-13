@@ -126,7 +126,7 @@ This software use the records created by Gikou-2.0.1.
 
 (5) Memory usage on the PyTorch side: Compared with Asklepios, memory usage is not heavy.
 
-(6) Python's version: 3.13.12
+(6) Python's version: 3.13.14
 
 (7) This software uses Microsoft.ML.OnnxRuntime.Gpu. This library is installed by NuGet Manager.
 
