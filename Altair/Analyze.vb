@@ -137,9 +137,9 @@ Module Analyze
         sw.Close()
     End Sub
 
-    'LSTMを用いて棋譜の解析を行う。
+    '時系列ネットワークを用いて棋譜の解析を行う。
     Public Sub AnalyzeRecord2(ByVal num_tasks As Integer, ByVal num_mate_tasks As Integer, ByVal thinking_time As Integer, ByVal mate_search_depth As Integer, ByVal policy_network_threshold As Integer, ByVal value_lambda As Single, ByVal analyze_file_name As String, ByVal record_file_name As String,
-                             ByVal str_game_date As String, ByVal str_match_name As String, ByVal str_black_player As String, ByVal str_white_player As String)
+                             ByVal str_game_date As String, ByVal str_match_name As String, ByVal str_black_player As String, ByVal str_white_player As String, use_gru As Boolean)
         Dim AppPath As String
         Dim FilePath As String
         Dim r As Record
@@ -163,7 +163,11 @@ Module Analyze
         Dim h As Integer
         Dim temp_label As Label
         Dim sq As Integer
-        LoadModel2()
+        If use_gru = False Then
+            LoadModel2()
+        Else
+            LoadModel3()
+        End If
         AppPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase
         records = ReadRecords(record_file_name)
         r = records(0)
@@ -316,6 +320,46 @@ Module Analyze
     Public Sub LoadModel2()
         sessionOptions.AppendExecutionProvider_CUDA(deviceId:=0)
         policy_session = New InferenceSession("model_lstm.onnx", sessionOptions)
+        value_session = New InferenceSession("model_lstm_value.onnx", sessionOptions)
+
+        'warming up model
+        'GPUにデータを飛ばした後の初回実行は時間がかかるので、ウォーミングアップする。
+        Dim inputData(1 * 128 - 1) As Integer
+        Dim inputTensor = New DenseTensor(Of Integer)(inputData, New Integer() {1, 128})
+        Dim inputName = policy_session.InputMetadata.Keys.First()
+
+        ' prediction
+        Using results = policy_session.Run(New List(Of NamedOnnxValue) From {
+            NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
+        })
+            ' get outputs.
+            For Each result In results
+                Console.WriteLine($"Output: {result.Name}")
+                Dim outputTensor = result.AsTensor(Of Single)()
+                Console.WriteLine($"First value: {outputTensor(0)}")
+            Next
+        End Using
+
+        inputName = value_session.InputMetadata.Keys.First()
+        ' prediction
+        Using results = value_session.Run(New List(Of NamedOnnxValue) From {
+            NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
+        })
+            ' get outputs.
+            For Each result In results
+                Console.WriteLine($"Output: {result.Name}")
+                Dim outputTensor = result.AsTensor(Of Single)()
+                Console.WriteLine($"First value: {outputTensor(0)}")
+            Next
+        End Using
+    End Sub
+
+    'GRUのモデルをロードする。ただしValue NetworkはLSTMのままである。
+    Public Sub LoadModel3()
+        sessionOptions.AppendExecutionProvider_CUDA(deviceId:=0)
+        policy_session = New InferenceSession("model_gru.onnx", sessionOptions)
+
+        'Value NetworkはまだGRU版ができていないので、LSTMにしておく。
         value_session = New InferenceSession("model_lstm_value.onnx", sessionOptions)
 
         'warming up model
