@@ -183,6 +183,8 @@ If you navigate to the cnn folder and execute the start.bat, the specified game 
 
 (13) White Player name
 
+(14) Use GRU   True: Analyzing Record by GRU, False: Analyzing Record by LSTM
+
 ## Contents of Release file
 
 The execution environment of this software is contained in the Release file.
