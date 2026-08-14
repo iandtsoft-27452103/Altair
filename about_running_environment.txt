@@ -58,7 +58,7 @@ onnxruntime_providers_cuda.dll
 onnxruntime_providers_shared.dll
 onnxruntime_providers_tensorrt.dll
 System.Numerics.Tensors.dll
-(51 files)
+(52 files)
 
 【files in [root\runtimes\linux-x64\native\]】
 libonnxruntime.so
